@@ -1,8 +1,13 @@
 from django.contrib.auth.models import User
-from rest_framework import viewsets, permissions, mixins
-from django.http import HttpResponse
+from rest_framework import viewsets, permissions, mixins, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from rest_framework.viewsets import ViewSet
+from django.contrib.auth import authenticate, login
 from Lock.models import Terminal, Device
-from Lock.serializers import UserSerializer, TerminalSerializer, DeviceSerializer, RegisterSerializer
+from Lock.serializers import UserSerializer, TerminalSerializer, DeviceSerializer, RegisterSerializer, TriggerSerializer
+from django.views.decorators.csrf import csrf_exempt
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
@@ -20,9 +25,23 @@ class DeviceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 class RegisterView(viewsets.GenericViewSet, mixins.CreateModelMixin,):
-    permission_classes = (permissions.AllowAny,)
     serializer_class = RegisterSerializer
+    permission_classes = (permissions.AllowAny,)
 
-def Trigger(request):
-    permission_classes = [permissions.IsAuthenticated]
-    return HttpResponse()
+class TriggerView(viewsets.GenericViewSet, mixins.CreateModelMixin,):
+    authentication_classes = []
+    serializer_class = TriggerSerializer
+    permission_classes = (permissions.AllowAny,)
+
+
+class LoginView(APIView):
+    authentication_classes = []
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        user = authenticate(username=username, password=password)
+
+        if user is not None:
+            return Response({"success": True}, status=status.HTTP_200_OK)
+            
+        return Response({"success": False}, status=status.HTTP_401_UNAUTHORIZED)

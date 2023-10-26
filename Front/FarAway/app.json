@@ -25,7 +25,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "build": { "babel": { "include": [ "@ui-kitten/components" ] } }
+      "build": {
+        "babel": {
+          "include": [
+            "@ui-kitten/components",
+            "@ui-kitten/eva-icons"
+          ]
+        }
+      }
     }
   }
 }

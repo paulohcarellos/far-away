@@ -1,16 +1,30 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth import authenticate, login
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from Lock.models import Terminal, Device
 from uuid import UUID
+import time
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
-    terminals = serializers.StringRelatedField(many=True)
+    terminals = serializers.StringRelatedField(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ['url', 'username', 'email', 'terminals']
+        fields = ['username', 'email', 'password', 'terminals']
+
+class TerminalSerializer(serializers.HyperlinkedModelSerializer):
+    devices = serializers.HyperlinkedRelatedField(many=True, read_only=True, view_name='device-detail')
+
+    class Meta:
+        model = Terminal
+        fields = ['guid', 'user', 'devices']
+
+class DeviceSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Device
+        fields = ['guid', 'terminal', 'status']
 
 class RegisterSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=True)
@@ -21,7 +35,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email', 'password', 'password_confirm')
+        fields = ['first_name', 'last_name', 'email', 'password', 'password_confirm']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
@@ -39,15 +53,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
-
-class TerminalSerializer(serializers.HyperlinkedModelSerializer):
-    devices = serializers.HyperlinkedRelatedField(many=True, read_only=True, view_name='device-detail')
-
-    class Meta:
-        model = Terminal
-        fields = ['guid', 'user', 'devices']
-
-class DeviceSerializer(serializers.HyperlinkedModelSerializer):
+    
+class TriggerSerializer(serializers.ModelSerializer):
+    device_guid = serializers.UUIDField(required=True, write_only=True)
+    success = serializers.BooleanField(read_only=True)
+    
     class Meta:
         model = Device
-        fields = ['guid', 'terminal', 'status']
+        fields = ['device_guid', 'success']
+
+    def create(self, data):
+        device = Device.objects.get(guid=data['device_guid'])
+        device.status = 2
+        device.save()
+
+        time.sleep(3)
+
+        data['success'] = True
+        return data
