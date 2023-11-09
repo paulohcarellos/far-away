@@ -53,21 +53,3 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
-    
-class TriggerSerializer(serializers.ModelSerializer):
-    device_guid = serializers.UUIDField(required=True, write_only=True)
-    success = serializers.BooleanField(read_only=True)
-    
-    class Meta:
-        model = Device
-        fields = ['device_guid', 'success']
-
-    def create(self, data):
-        device = Device.objects.get(guid=data['device_guid'])
-        device.status = 2
-        device.save()
-
-        time.sleep(3)
-
-        data['success'] = True
-        return data
