@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.serializers import ModelSerializer, HyperlinkedModelSerializer, CharField, EmailField, HyperlinkedRelatedField, ValidationError
 from rest_framework.validators import UniqueValidator
-from Lock.models import Terminal, Device
+from Lock.models import Terminal
 
 class UserSerializer(HyperlinkedModelSerializer):
     terminals = HyperlinkedRelatedField(many=True, read_only=True, view_name='terminal-detail')
@@ -12,16 +12,9 @@ class UserSerializer(HyperlinkedModelSerializer):
         fields = ['username', 'email', 'password', 'terminals']
 
 class TerminalSerializer(HyperlinkedModelSerializer):
-    devices = HyperlinkedRelatedField(many=True, read_only=True, view_name='device-detail')
-
     class Meta:
         model = Terminal
-        fields = ['guid', 'user', 'devices']
-
-class DeviceSerializer(HyperlinkedModelSerializer):
-    class Meta:
-        model = Device
-        fields = ['guid', 'terminal', 'status']
+        fields = ['guid', 'user', 'status']
 
 class RegisterSerializer(ModelSerializer):
     first_name = CharField(required=True)
