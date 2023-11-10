@@ -12,30 +12,25 @@ from django.views.decorators.csrf import csrf_exempt
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 class TerminalViewSet(viewsets.ModelViewSet):
     queryset = Terminal.objects.all()
     serializer_class = TerminalSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 class DeviceViewSet(viewsets.ModelViewSet):
     queryset = Device.objects.all()
     serializer_class = DeviceSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 class RegisterView(viewsets.GenericViewSet, mixins.CreateModelMixin,):
     serializer_class = RegisterSerializer
     permission_classes = (permissions.AllowAny,)
 
-class TriggerView(APIView):
-    authentication_classes = []
-    
+class TriggerView(APIView):   
     def post(self, request):
         device = Device.objects.filter(guid=data['device_guid'])
 
         if len(device) == 0:
-            return Response({"success": False}, status=status.HTTP_404_NOT_FOUND)
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
         device.status = 2
         device.save()
@@ -45,26 +40,32 @@ class TriggerView(APIView):
         return Response({"success": True}, status=status.HTTP_200_OK) 
 
 class StatusView(APIView):
-    authentication_classes = []
-
     def post(self, request):
         guid = request.data.get('guid')
         device = list(Device.objects.filter(guid=guid))
 
-        if len(device) == 0:
+        user_terminals = list(request.user.terminals.all())
+        user_devices = [list(terminal.devices.all()) for terminal in user_terminals]
+        user_devices = [device for devices in user_devices for device in devices]
+
+        print(user_devices)
+
+        if len(device) == 0 or device not in user_devices:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         return Response(device[0].status, status=status.HTTP_200_OK)        
 
 class LoginView(APIView):
-    authentication_classes = []
+    permission_classes = (permissions.AllowAny)
+
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
         user = authenticate(username=username, password=password)
 
         if user is not None:
-            return Response({"success": True}, status=status.HTTP_200_OK)
+            Token.objects.get(user=user)
+            return Response(token.key, status=status.HTTP_200_OK)
             
-        return Response({"success": False}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
 

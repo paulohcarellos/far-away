@@ -5,6 +5,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from Lock.models import Terminal, Device
 from uuid import UUID
+from rest_framework.authtoken.models import Token
 import time
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -52,4 +53,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
         user.set_password(validated_data['password'])
         user.save()
+
+        Token.objects.create(user=user)
+
         return user
