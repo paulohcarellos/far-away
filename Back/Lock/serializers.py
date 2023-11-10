@@ -1,38 +1,34 @@
 from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth import authenticate, login
-from rest_framework import serializers
+from rest_framework.authtoken.models import Token
+from rest_framework.serializers import ModelSerializer, HyperlinkedModelSerializer, CharField, EmailField, HyperlinkedRelatedField, ValidationError
 from rest_framework.validators import UniqueValidator
 from Lock.models import Terminal, Device
-from uuid import UUID
-from rest_framework.authtoken.models import Token
-import time
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
-    terminals = serializers.StringRelatedField(many=True, read_only=True)
+class UserSerializer(HyperlinkedModelSerializer):
+    terminals = HyperlinkedRelatedField(many=True, read_only=True, view_name='terminal-detail')
 
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'terminals']
 
-class TerminalSerializer(serializers.HyperlinkedModelSerializer):
-    devices = serializers.HyperlinkedRelatedField(many=True, read_only=True, view_name='device-detail')
+class TerminalSerializer(HyperlinkedModelSerializer):
+    devices = HyperlinkedRelatedField(many=True, read_only=True, view_name='device-detail')
 
     class Meta:
         model = Terminal
         fields = ['guid', 'user', 'devices']
 
-class DeviceSerializer(serializers.HyperlinkedModelSerializer):
+class DeviceSerializer(HyperlinkedModelSerializer):
     class Meta:
         model = Device
         fields = ['guid', 'terminal', 'status']
 
-class RegisterSerializer(serializers.ModelSerializer):
-    first_name = serializers.CharField(required=True)
-    last_name = serializers.CharField(required=True)
-    email = serializers.EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
-    password = serializers.CharField(write_only=True, required=True)
-    password_confirm = serializers.CharField(write_only=True, required=True)
+class RegisterSerializer(ModelSerializer):
+    first_name = CharField(required=True)
+    last_name = CharField(required=True)
+    email = EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
+    password = CharField(write_only=True, required=True)
+    password_confirm = CharField(write_only=True, required=True)
 
     class Meta:
         model = User
@@ -40,7 +36,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
+            raise ValidationError({"password": "Password fields didn't match."})
         
         return attrs
     
