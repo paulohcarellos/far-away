@@ -1,122 +1,229 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, BackHandler } from 'react-native';
-import { Layout, Button, Icon, Spinner, useTheme } from '@ui-kitten/components';
-import { useFocusEffect } from '@react-navigation/native';
-import axios from 'axios';
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, View, BackHandler } from "react-native";
+import { useTheme, Text, Layout, Drawer, DrawerGroup, DrawerItem, Icon, Button, Divider } from "@ui-kitten/components";
+import { useFocusEffect } from "@react-navigation/native";
+import LockCard from "../components/LockCard";
+import * as SecureStore from "expo-secure-store";
+import axios from "axios";
 
 export default function DashboardScreen() {
-  const theme = useTheme()
-  const styles = getStyles(theme)
+  const theme = useTheme();
+  const styles = getStyles(theme);
 
-  const [iconName, setIconName] = useState('lock-outline')
-  const [opening, setOpening] = useState(false)
-  const [opened, setOpened] = useState(false)
-  const [loadingIcon, setLoadingIcon] = useState(false)
+  const [terminals, setTerminals] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(null);
 
-  const lockIconRef = useRef();
-
-  const openLock = () => {
-    setOpening(true)
-    axios.post('http://192.168.15.187:8000/trigger/', {'device_guid': 'c4135d2ca2fa49a9b6f05ce775981ff8'})
-        .then(response => {
-          setOpened(response.data.success)
-        })
-        .catch(error => {
-          console.log(error);
-        });
-  }
-
-  useEffect(() => {setLoadingIcon(opening)}, [opening]);
+  const iconRefs = useRef([]);
 
   useEffect(() => {
-    if (opened == true) {
-      setOpening(false)
+    fetchTerminals();
+    const interval = setInterval(fetchTerminals, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-      lockIconRef.current.startAnimation()
-      setTimeout(() => {
-        setIconName('unlock-outline')
-      }, 200)
-    }
-  }, [opened]);
+  /* useEffect(() => {
+    console.log(terminals);
+  }, [terminals]); */
+
+  useFocusEffect(
+    React.useCallback(() => {
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+    }, [])
+  );
 
   const onBackPress = () => {
     BackHandler.exitApp();
     return true;
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-    }, [])
-  );
+  const fetchTerminals = async () => {
+    try {
+      const config = {
+        headers: {
+          Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
+        },
+      };
 
-  const LoadingIndicator = () => (
-    <View style={[styles.indicator]}>
-      {loadingIcon && <Spinner size='small' />}
-    </View>
-  );
+      axios.get("http://192.168.15.187:8000/user-terminals/", config).then((response) => {
+        if (response.status === 200) {
+          const animate = [];
+          console.log(response.data);
+          console.log(terminals)
+
+          response.data.forEach((terminal, terminalIdx) => {
+            console.log(terminal);
+            const old = terminals.find((s) => s.key == terminal.key);
+
+            console.log(old);
+
+            if (old !== undefined) {
+              terminal.isLocked.forEach((isLocked, lockedIdx) => {
+                console.log(isLocked);
+                console.log(old.isLocked[lockedIdx]);
+                if (isLocked == true && old.isLocked[lockedIdx] == false) animate.push(terminalIdx * 2 + lockedIdx);
+              });
+            }
+          });
+
+          console.log(animate);
+
+          animate.forEach((icon) => iconRefs.current[icon].startAnimation());
+
+          setTimeout(() => {
+            setTerminals(
+              response.data.map((terminal) => ({
+                key: terminal.key,
+                isLocked: terminal.isLocked,
+                isLoading: [false, false],
+                icons: terminal.isLocked.map((s) => (s ? "lock-outline" : "unlock-outline")),
+              }))
+            );
+          }, 200);
+        }
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const openDevice = async (terminalIdx, deviceIdx) => {
+    if (terminals[terminalIdx].isLocked[deviceIdx]) {
+      var updating = [...terminals];
+      updating[terminalIdx].isLoading[deviceIdx] = true;
+      setTerminals(updating);
+
+      try {
+        const data = {
+          terminal_guid: terminals[terminalIdx].key,
+          device_idx: deviceIdx,
+        };
+
+        const config = {
+          headers: {
+            Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
+          },
+        };
+
+        axios.post("http://192.168.15.187:8000/trigger/", data, config).then((response) => {
+          if ((response.status = 200)) {
+            var updating = [...terminals];
+            updating[terminalIdx].isLoading[deviceIdx] = false;
+            updating[terminalIdx].isLocked[deviceIdx] = false;
+            setTerminals(updating);
+
+            iconRefs.current[terminalIdx * 2 + deviceIdx].startAnimation();
+
+            setTimeout(() => {
+              var updating = [...terminals];
+              updating[terminalIdx].icons[deviceIdx] = "unlock-outline";
+              setTerminals(updating);
+            }, 200);
+          }
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
 
   return (
     <Layout style={styles.layout}>
-      <View style={styles.lockContainer}>
-        <View style={styles.lockIcon}>
-          <Icon
-            name={iconName}
-            animation='shake'
-            fill={theme['text-basic-color']}
-            ref={lockIconRef}
-          />
-        </View>
-        <View
-          style={styles.footerContainer}
+      <View style={styles.terminalList}>
+        <Text category="h2" style={styles.listHeader}>
+          Terminals
+        </Text>
+        <Divider />
+        <Drawer
+          selectedIndex={selectedIndex}
+          onSelect={(index) => {
+            console.log(index), setSelectedIndex(index);
+          }}
+          style={styles.terminalDrawer}
         >
-          <Button
-            style={styles.openButton}
-            accessoryLeft={LoadingIndicator}
-            appearance='outline'
-            onPress={() => openLock()}
-            size='large'
-          >
-            Open
-          </Button>
-        </View>
+          {terminals.map((terminal, idx) => (
+            <DrawerGroup
+              key={terminal.key}
+              title={(evaProps) => <Text style={[evaProps.style, styles.terminalItemTitle]}>Terminal 1</Text>}
+              accessoryLeft={(evaProps) => <Icon style={[evaProps.style, styles.terminalItemIcon]} name="radio-outline" />}
+              style={styles.terminalItem}
+            >
+              <DrawerItem
+                title={(evaProps) => <Text style={[evaProps.style, styles.lockItemTitle]}>Lock 1</Text>}
+                accessoryLeft={
+                  <LockCard
+                    theme={theme}
+                    loading={terminal.isLoading[0]}
+                    iconName={terminal.icons[0]}
+                    onPress={() => openDevice(idx, 0)}
+                    iconRef={iconRefs}
+                    refIdx={idx * 2}
+                  />
+                }
+                style={styles.lockItem}
+              />
+              <DrawerItem
+                title={(evaProps) => <Text style={[evaProps.style, styles.lockItemTitle]}>Lock 2</Text>}
+                accessoryLeft={
+                  <LockCard
+                    theme={theme}
+                    loading={terminal.isLoading[1]}
+                    iconName={terminal.icons[1]}
+                    onPress={() => openDevice(idx, 1)}
+                    iconRef={iconRefs}
+                    refIdx={idx * 2 + 1}
+                  />
+                }
+                style={styles.lockItem}
+              />
+            </DrawerGroup>
+          ))}
+        </Drawer>
+        <Button appearance="outline" style={styles.addTerminalButton} size="large" accessoryLeft={<Icon name="plus-outline" />}>
+          Add Terminal
+        </Button>
       </View>
     </Layout>
   );
-};
+}
 
-const getStyles = theme => StyleSheet.create({
-  layout: {
-    height: '100%',
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  lockContainer: {
-    height: 300,
-    width: 300,
-    borderWidth: 1,
-    borderColor: theme['border-basic-color-4'],
-    borderRadius: 12,
-    justifyContent: 'space-evenly',
-  },
-  lockIcon: {
-    height: '60%'
-  },
-  footerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  indicator: {
-    position: 'absolute',
-    left: 15,
-    width: '20%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  openButton: {
-    width: 150
-  },
-});
+const getStyles = (theme) =>
+  StyleSheet.create({
+    layout: {
+      height: "100%",
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    terminalList: {
+      margin: 50,
+      padding: 10,
+      width: "90%",
+      flexDirection: "column",
+    },
+    terminalDrawer: {
+      height: "60%",
+    },
+    listHeader: {
+      marginBottom: 20,
+    },
+    terminalItem: {
+      height: 80,
+    },
+    terminalItemTitle: {
+      fontSize: 20,
+    },
+    terminalItemIcon: {
+      width: 30,
+      height: 30,
+    },
+    lockItemTitle: {
+      fontSize: 18,
+      marginLeft: 15,
+      paddingTop: 5,
+    },
+    addTerminalButton: {
+      height: 70,
+    },
+  });

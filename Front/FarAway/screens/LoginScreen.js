@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Layout, Button, Input, Spinner } from '@ui-kitten/components';
+import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 
 export default function LoginScreen({ navigation }) {
@@ -13,12 +14,10 @@ export default function LoginScreen({ navigation }) {
   const handleLogin = () => {
     setLoadingIcon(true)
     axios.post('http://192.168.15.187:8000/login/', {'username': username, 'password': password})
-        .then(response => {
-          if (response.data.success) {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Dashboard' }],
-            });
+        .then(async response => {
+          if (response.status == 200) {
+            await SecureStore.setItemAsync('authToken', response.data);
+            navigation.replace('Dashboard')
           }
         })
         .catch(error => {
@@ -40,12 +39,14 @@ export default function LoginScreen({ navigation }) {
           style={styles.input}
           label='Email'
           placeholder='Email address'
+          autoCapitalize='none'
           onChangeText={setUsername}
         />
         <Input
           style={styles.input}
           label='Password'
           placeholder='Password'
+          autoCapitalize='none'
           secureTextEntry={hidden}
           onChangeText={setPassword}
         />

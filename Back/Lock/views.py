@@ -23,7 +23,7 @@ class RegisterView(GenericViewSet, mixins.CreateModelMixin,):
     permission_classes = [permissions.AllowAny]
 
 class LoginView(APIView):
-    permission_classes = (permissions.AllowAny)
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         username = request.data.get('username')
@@ -49,8 +49,26 @@ class SetupView(APIView):
         terminal.save()
 
         return Response(status=status.HTTP_200_OK)
+    
+class StartView(APIView):
+    authentication_classes = []
+    
+    def post(self, request, guid, secret):
+        terminals = Terminal.objects.filter(guid=guid, secret=secret)
 
-import time
+        if len(terminals) == 0:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        terminal = terminals[0]
+        user = terminal.user
+
+        if user is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        
+        token = Token.objects.get(user=user)
+
+        return Response(token, status=status.HTTP_200_OK)
+
 class TriggerView(APIView):   
     def post(self, request):
         terminals = Terminal.objects.filter(guid=request.data['terminal_guid'])
@@ -65,12 +83,10 @@ class TriggerView(APIView):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         terminal_status = list(terminal.status)
-        terminal_status[int(request.data['index'])] = '1'
+        terminal_status[int(request.data['device_idx'])] = '1'
 
         terminal.status = ''.join(terminal_status)
         terminal.save()
-
-        time.sleep(1)
 
         return Response(status=status.HTTP_200_OK)
     
@@ -91,8 +107,6 @@ class UpdateView(APIView):
         terminal.status = request.data['status']
         terminal.save()
 
-        time.sleep(1)
-
         return Response(status=status.HTTP_200_OK) 
 
 class PollView(APIView):
@@ -108,7 +122,13 @@ class PollView(APIView):
         if terminal not in user_terminals:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        return Response(terminal.status, status=status.HTTP_200_OK)        
+        return Response(terminal.status, status=status.HTTP_200_OK)
+    
+class UserTerminalsView(APIView):
+    def get(self, request):
+        terminals = Terminal.objects.filter(user=request.user)
+        terminals = [{"key": str(terminals[i].guid), "isLocked": [dev == "0" for dev in terminals[i].status]} for i in range(len(terminals))]
+        return Response(terminals, status=status.HTTP_200_OK) 
 
 
 

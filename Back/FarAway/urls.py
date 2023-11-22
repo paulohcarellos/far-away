@@ -14,5 +14,6 @@ urlpatterns = [
     path('trigger/', views.TriggerView.as_view(), name='trigger'),
     path('update/', views.UpdateView.as_view(), name='update'),
     path('poll/', views.PollView.as_view(), name='poll'),
+    path('user-terminals/', views.UserTerminalsView.as_view(), name='user-terminals'),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]
