@@ -10,10 +10,11 @@ router.register(r'register', views.RegisterView, basename='register')
 urlpatterns = [
     path('', include(router.urls)),
     path('login/', views.LoginView.as_view(), name='login'),
-    path('setup/<str:guid>/<str:secret>/', views.SetupView.as_view(), name='setup'),
+    path('setup/', views.SetupView.as_view(), name='setup'),
     path('trigger/', views.TriggerView.as_view(), name='trigger'),
     path('update/', views.UpdateView.as_view(), name='update'),
     path('poll/', views.PollView.as_view(), name='poll'),
     path('user-terminals/', views.UserTerminalsView.as_view(), name='user-terminals'),
+    path('generate-qrcodes/', views.GenerateQrCodes.as_view(), name='generate-qrcodes'),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]

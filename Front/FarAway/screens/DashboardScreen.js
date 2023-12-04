@@ -3,10 +3,11 @@ import { StyleSheet, View, BackHandler } from "react-native";
 import { useTheme, Text, Layout, Drawer, DrawerGroup, DrawerItem, Icon, Button, Divider } from "@ui-kitten/components";
 import { useFocusEffect } from "@react-navigation/native";
 import LockCard from "../components/LockCard";
-import * as SecureStore from "expo-secure-store";
 import axios from "axios";
+import * as SecureStore from "expo-secure-store";
 
-export default function DashboardScreen() {
+
+export default function DashboardScreen({ navigation }) {
   const theme = useTheme();
   const styles = getStyles(theme);
 
@@ -47,39 +48,15 @@ export default function DashboardScreen() {
 
       axios.get("http://192.168.15.187:8000/user-terminals/", config).then((response) => {
         if (response.status === 200) {
-          const animate = [];
-          console.log(response.data);
-          console.log(terminals)
-
-          response.data.forEach((terminal, terminalIdx) => {
-            console.log(terminal);
-            const old = terminals.find((s) => s.key == terminal.key);
-
-            console.log(old);
-
-            if (old !== undefined) {
-              terminal.isLocked.forEach((isLocked, lockedIdx) => {
-                console.log(isLocked);
-                console.log(old.isLocked[lockedIdx]);
-                if (isLocked == true && old.isLocked[lockedIdx] == false) animate.push(terminalIdx * 2 + lockedIdx);
-              });
-            }
-          });
-
-          console.log(animate);
-
-          animate.forEach((icon) => iconRefs.current[icon].startAnimation());
-
-          setTimeout(() => {
-            setTerminals(
-              response.data.map((terminal) => ({
-                key: terminal.key,
-                isLocked: terminal.isLocked,
-                isLoading: [false, false],
-                icons: terminal.isLocked.map((s) => (s ? "lock-outline" : "unlock-outline")),
-              }))
-            );
-          }, 200);
+          setTerminals(
+            response.data.map((terminal) => ({
+              key: terminal.key,
+              isLocked: terminal.isLocked,
+              // todo: multiple-lock
+              isLoading: [false],
+              icons: terminal.isLocked.map((s) => (s ? "lock-outline" : "unlock-outline")),
+            }))
+          );
         }
       });
     } catch (error) {
@@ -112,7 +89,7 @@ export default function DashboardScreen() {
             updating[terminalIdx].isLocked[deviceIdx] = false;
             setTerminals(updating);
 
-            iconRefs.current[terminalIdx * 2 + deviceIdx].startAnimation();
+            iconRefs.current[terminalIdx].startAnimation();
 
             setTimeout(() => {
               var updating = [...terminals];
@@ -125,6 +102,10 @@ export default function DashboardScreen() {
         console.log(error);
       }
     }
+  };
+
+  const scanCode = () => {
+    navigation.replace('QrCode')
   };
 
   return (
@@ -144,12 +125,13 @@ export default function DashboardScreen() {
           {terminals.map((terminal, idx) => (
             <DrawerGroup
               key={terminal.key}
-              title={(evaProps) => <Text style={[evaProps.style, styles.terminalItemTitle]}>Terminal 1</Text>}
+              title={(evaProps) => <Text style={[evaProps.style, styles.terminalItemTitle]}>Terminal {idx + 1}</Text>}
               accessoryLeft={(evaProps) => <Icon style={[evaProps.style, styles.terminalItemIcon]} name="radio-outline" />}
               style={styles.terminalItem}
             >
               <DrawerItem
-                title={(evaProps) => <Text style={[evaProps.style, styles.lockItemTitle]}>Lock 1</Text>}
+                // todo: multiple-lock
+                title={(evaProps) => <Text style={[evaProps.style, styles.lockItemTitle]}>Lock {idx + 1}</Text>}
                 accessoryLeft={
                   <LockCard
                     theme={theme}
@@ -157,29 +139,18 @@ export default function DashboardScreen() {
                     iconName={terminal.icons[0]}
                     onPress={() => openDevice(idx, 0)}
                     iconRef={iconRefs}
-                    refIdx={idx * 2}
+                    refIdx={idx}
                   />
                 }
                 style={styles.lockItem}
               />
-              <DrawerItem
-                title={(evaProps) => <Text style={[evaProps.style, styles.lockItemTitle]}>Lock 2</Text>}
-                accessoryLeft={
-                  <LockCard
-                    theme={theme}
-                    loading={terminal.isLoading[1]}
-                    iconName={terminal.icons[1]}
-                    onPress={() => openDevice(idx, 1)}
-                    iconRef={iconRefs}
-                    refIdx={idx * 2 + 1}
-                  />
-                }
-                style={styles.lockItem}
-              />
+              {
+                // todo: multiple-lock
+              }
             </DrawerGroup>
           ))}
         </Drawer>
-        <Button appearance="outline" style={styles.addTerminalButton} size="large" accessoryLeft={<Icon name="plus-outline" />}>
+        <Button appearance="outline" style={styles.addTerminalButton} size="large" accessoryLeft={<Icon name="plus-outline" />} onPress={() => navigation.navigate('QRScanner')}>
           Add Terminal
         </Button>
       </View>

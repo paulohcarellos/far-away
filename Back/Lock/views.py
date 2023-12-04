@@ -7,6 +7,7 @@ from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.authtoken.models import Token
 from Lock.models import Terminal
 from Lock.serializers import UserSerializer, TerminalSerializer, RegisterSerializer
+from Lock.generate import generate_qrcodes
 
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
@@ -37,8 +38,8 @@ class LoginView(APIView):
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 class SetupView(APIView):
-    def get(self, request, guid, secret):
-        terminals = Terminal.objects.filter(guid=guid, secret=secret)
+    def post(self, request):
+        terminals = Terminal.objects.filter(guid=request.data["guid"], secret=request.data["secret"])
 
         if len(terminals) == 0:
             return Response(status=status.HTTP_403_FORBIDDEN)
@@ -130,5 +131,11 @@ class UserTerminalsView(APIView):
         terminals = [{"key": str(terminals[i].guid), "isLocked": [dev == "0" for dev in terminals[i].status]} for i in range(len(terminals))]
         return Response(terminals, status=status.HTTP_200_OK) 
 
-
+class GenerateQrCodes(APIView):
+    def get(self, request):
+        if (request.user.is_superuser):
+            generate_qrcodes()
+            return Response(status=status.HTTP_200_OK)
+        
+        return Response(status=status.HTTP_403_FORBIDDEN) 
 
