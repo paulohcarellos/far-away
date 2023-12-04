@@ -21,7 +21,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.systems.faraway",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -32,6 +35,11 @@
             "@ui-kitten/eva-icons"
           ]
         }
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "399a0db9-109b-4899-adc1-a68c6ba3d7b4"
       }
     }
   }
