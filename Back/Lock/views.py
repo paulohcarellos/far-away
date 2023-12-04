@@ -112,7 +112,7 @@ class UpdateView(APIView):
 
 class PollView(APIView):
     def post(self, request):
-        terminals = Terminal.objects.filter(guid=request.data['terminal_guid'])
+        terminals = list(Terminal.objects.filter(guid=request.data['terminal_guid']))
 
         if len(terminals) == 0:
             return Response(status=status.HTTP_404_NOT_FOUND)
