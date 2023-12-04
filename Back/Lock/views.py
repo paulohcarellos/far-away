@@ -130,5 +130,8 @@ class UserTerminalsView(APIView):
         terminals = [{"key": str(terminals[i].guid), "isLocked": [dev == "0" for dev in terminals[i].status]} for i in range(len(terminals))]
         return Response(terminals, status=status.HTTP_200_OK) 
 
-
-
+class UserTerminalsView(APIView):
+    def get(self, request):
+        terminals = Terminal.objects.filter(user=request.user)
+        terminals = [{"key": str(terminals[i].guid), "isLocked": [dev == "0" for dev in terminals[i].status]} for i in range(len(terminals))]
+        return Response(terminals, status=status.HTTP_200_OK) 
