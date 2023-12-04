@@ -5,9 +5,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.authtoken.models import Token
-from Lock.models import Terminal
+from Lock.models import Terminal, Task
 from Lock.serializers import UserSerializer, TerminalSerializer, RegisterSerializer
 from Lock.generate import generate_qrcodes
+from datetime import datetime
 
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
@@ -138,5 +139,31 @@ class GenerateQrCodes(APIView):
             return Response(status=status.HTTP_200_OK)
         
         return Response(status=status.HTTP_403_FORBIDDEN) 
+    
+class RegisterTaskView(APIView):   
+    def post(self, request):
+        terminals = Terminal.objects.filter(guid=request.data['terminal_guid'])
 
+        if len(terminals) == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        terminal = terminals[0]
+        user_terminals = list(request.user.terminals.all())
+
+        if terminal not in user_terminals or terminal.schedulled:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            task_time = datetime.strptime(request.data['time'], '%Y-%m-%d %H:%M:%S')
+        except:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        
+        task = Task(terminal=terminal, time=task_time)
+        task.save()
+
+        terminal.schedulled = True
+        terminal.save()
+
+        return Response(status=status.HTTP_200_OK)
+    
 
