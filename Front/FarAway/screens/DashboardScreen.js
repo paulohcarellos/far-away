@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, View, BackHandler } from "react-native";
-import { useTheme, Text, Layout, Drawer, DrawerGroup, DrawerItem, Icon, Button, Divider } from "@ui-kitten/components";
+import { useTheme, Text, Layout, Drawer, DrawerGroup, DrawerItem, Icon, Button, Divider, Modal } from "@ui-kitten/components";
 import { useFocusEffect } from "@react-navigation/native";
 import LockCard from "../components/LockCard";
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
-
 
 export default function DashboardScreen({ navigation }) {
   const theme = useTheme();
   const styles = getStyles(theme);
 
   const [terminals, setTerminals] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [visible, setVisible] = useState(false);
 
   const iconRefs = useRef([]);
 
@@ -21,10 +20,6 @@ export default function DashboardScreen({ navigation }) {
     const interval = setInterval(fetchTerminals, 10000);
     return () => clearInterval(interval);
   }, []);
-
-  /* useEffect(() => {
-    console.log(terminals);
-  }, [terminals]); */
 
   useFocusEffect(
     React.useCallback(() => {
@@ -39,29 +34,26 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const fetchTerminals = async () => {
-    try {
-      const config = {
-        headers: {
-          Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
-        },
-      };
+    const config = {
+      headers: {
+        Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
+      },
+    };
 
-      axios.get("http://192.168.15.187:8000/user-terminals/", config).then((response) => {
-        if (response.status === 200) {
-          setTerminals(
-            response.data.map((terminal) => ({
-              key: terminal.key,
-              isLocked: terminal.isLocked,
-              // todo: multiple-lock
-              isLoading: [false],
-              icons: terminal.isLocked.map((s) => (s ? "lock-outline" : "unlock-outline")),
-            }))
-          );
-        }
-      });
-    } catch (error) {
-      console.error(error);
-    }
+    axios
+      .get("http://192.168.15.187:8000/user-terminals/", config)
+      .then((response) => {
+        // todo: multiple-lock
+        setTerminals(
+          response.data.map((terminal) => ({
+            key: terminal.key,
+            isLocked: terminal.isLocked, 
+            isLoading: [false],
+            icons: terminal.isLocked.map((s) => (s ? "lock-outline" : "unlock-outline")),
+          }))
+        );
+      })
+      .catch((err) => console.log(err));
   };
 
   const openDevice = async (terminalIdx, deviceIdx) => {
@@ -70,42 +62,38 @@ export default function DashboardScreen({ navigation }) {
       updating[terminalIdx].isLoading[deviceIdx] = true;
       setTerminals(updating);
 
-      try {
-        const data = {
-          terminal_guid: terminals[terminalIdx].key,
-          device_idx: deviceIdx,
-        };
+      const data = {
+        terminal_guid: terminals[terminalIdx].key,
+        device_idx: deviceIdx,
+      };
 
-        const config = {
-          headers: {
-            Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
-          },
-        };
+      const config = {
+        headers: {
+          Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
+        },
+      };
 
-        axios.post("http://192.168.15.187:8000/trigger/", data, config).then((response) => {
-          if ((response.status = 200)) {
+      axios.post("http://192.168.15.187:8000/trigger/", data, config).then((response) => {
+        if ((response.status = 200)) {
+          var updating = [...terminals];
+          updating[terminalIdx].isLoading[deviceIdx] = false;
+          updating[terminalIdx].isLocked[deviceIdx] = false;
+          setTerminals(updating);
+
+          iconRefs.current[terminalIdx].startAnimation();
+
+          setTimeout(() => {
             var updating = [...terminals];
-            updating[terminalIdx].isLoading[deviceIdx] = false;
-            updating[terminalIdx].isLocked[deviceIdx] = false;
+            updating[terminalIdx].icons[deviceIdx] = "unlock-outline";
             setTerminals(updating);
-
-            iconRefs.current[terminalIdx].startAnimation();
-
-            setTimeout(() => {
-              var updating = [...terminals];
-              updating[terminalIdx].icons[deviceIdx] = "unlock-outline";
-              setTerminals(updating);
-            }, 200);
-          }
-        });
-      } catch (error) {
-        console.log(error);
-      }
+          }, 200);
+        }
+      });
     }
   };
 
   const scanCode = () => {
-    navigation.replace('QrCode')
+    navigation.replace("QrCode");
   };
 
   return (
@@ -115,13 +103,7 @@ export default function DashboardScreen({ navigation }) {
           Terminals
         </Text>
         <Divider />
-        <Drawer
-          selectedIndex={selectedIndex}
-          onSelect={(index) => {
-            console.log(index), setSelectedIndex(index);
-          }}
-          style={styles.terminalDrawer}
-        >
+        <Drawer style={styles.terminalDrawer}>
           {terminals.map((terminal, idx) => (
             <DrawerGroup
               key={terminal.key}
@@ -142,6 +124,16 @@ export default function DashboardScreen({ navigation }) {
                     refIdx={idx}
                   />
                 }
+                accessoryRight={
+                  <LockCard
+                    theme={theme}
+                    loading={terminal.isLoading[0]}
+                    iconName={terminal.icons[0]}
+                    onPress={() => openDevice(idx, 0)}
+                    iconRef={iconRefs}
+                    refIdx={idx}
+                  />
+                }
                 style={styles.lockItem}
               />
               {
@@ -150,7 +142,13 @@ export default function DashboardScreen({ navigation }) {
             </DrawerGroup>
           ))}
         </Drawer>
-        <Button appearance="outline" style={styles.addTerminalButton} size="large" accessoryLeft={<Icon name="plus-outline" />} onPress={() => navigation.navigate('QRScanner')}>
+        <Button
+          appearance="outline"
+          style={styles.addTerminalButton}
+          size="large"
+          accessoryLeft={<Icon name="plus-outline" />}
+          onPress={() => navigation.navigate("QRScanner")}
+        >
           Add Terminal
         </Button>
       </View>

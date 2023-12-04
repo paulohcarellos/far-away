@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
+from django.utils import timezone
 from rest_framework import permissions, mixins, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -150,14 +151,19 @@ class RegisterTaskView(APIView):
         terminal = terminals[0]
         user_terminals = list(request.user.terminals.all())
 
-        if terminal not in user_terminals or terminal.schedulled:
+        if terminal not in user_terminals:# or terminal.schedulled:
             return Response(status=status.HTTP_403_FORBIDDEN)
         
+        tz = timezone.get_default_timezone()
+
         try:
-            task_time = datetime.strptime(request.data['time'], '%Y-%m-%d %H:%M:%S')
+            task_time = timezone.make_aware(datetime.strptime(request.data['time'], '%Y-%m-%d %H:%M:%S'), tz)
         except:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         
+        if task_time < timezone.make_aware(datetime.now(), tz):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
         task = Task(terminal=terminal, time=task_time)
         task.save()
 

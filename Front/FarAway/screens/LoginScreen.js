@@ -17,7 +17,7 @@ export default function LoginScreen({ navigation }) {
         .then(async response => {
           if (response.status == 200) {
             await SecureStore.setItemAsync('authToken', response.data);
-            navigation.replace('Dashboard')
+            navigation.navigate('Dashboard')
           }
         })
         .catch(error => {
