@@ -26,21 +26,37 @@
       "versionCode": 1,
       "permissions": []
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "build": {
-        "babel": {
-          "include": [
-            "@ui-kitten/components",
-            "@ui-kitten/eva-icons"
-          ]
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
-      }
-    },
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "399a0db9-109b-4899-adc1-a68c6ba3d7b4"
+      },
+      "backendUrl": "http://192.168.15.187:8000/"
+    }
+  },
+  "web": {
+    "favicon": "./assets/favicon.png",
+    "build": {
+      "babel": {
+        "include": [
+          "@ui-kitten/components",
+          "@ui-kitten/eva-icons"
+        ]
       }
+    }
+  },
+  "extra": {
+    "eas": {
+      "projectId": "399a0db9-109b-4899-adc1-a68c6ba3d7b4"
     }
   }
 }

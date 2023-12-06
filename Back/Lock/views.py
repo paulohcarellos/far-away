@@ -48,7 +48,7 @@ class SetupView(APIView):
         
         terminal = terminals[0]
         terminal.user = request.user
-        terminal.status = '00'
+        terminal.status = '0'
         terminal.save()
 
         return Response(status=status.HTTP_200_OK)
@@ -157,7 +157,7 @@ class RegisterTaskView(APIView):
         tz = timezone.get_default_timezone()
 
         try:
-            task_time = timezone.make_aware(datetime.strptime(request.data['time'], '%Y-%m-%d %H:%M:%S'), tz)
+            task_time = datetime.fromisoformat(request.data['time'])
         except:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         

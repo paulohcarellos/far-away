@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, View, BackHandler } from "react-native";
-import { useTheme, Text, Layout, Drawer, DrawerGroup, DrawerItem, Icon, Button, Divider, Modal, Card, Select, SelectItem, IndexPath } from "@ui-kitten/components";
+import {
+  useTheme,
+  Text,
+  Layout,
+  Drawer,
+  DrawerGroup,
+  DrawerItem,
+  Icon,
+  Button,
+  Divider,
+  Modal,
+  Card,
+  Select,
+  SelectItem,
+  IndexPath,
+} from "@ui-kitten/components";
 import { useFocusEffect } from "@react-navigation/native";
+import Constants from 'expo-constants';
 import LockCard from "../components/LockCard";
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
@@ -11,13 +27,14 @@ export default function DashboardScreen({ navigation }) {
   const styles = getStyles(theme);
 
   const [terminals, setTerminals] = useState([]);
-  const [featureModalVisible, setFeatureModalVisible] = useState(false);
 
-  const [hours, setHours] = useState("0")
-  const [selectedHours, setSelectedHours] = useState(new IndexPath(0))
-  /* const [selectedMinutes, setSelectedMinutes] = useState(new IndexPath(0));
-  
-  const [minutes, setMinutes] = useState(null); */
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTerminal, setModalTerminal] = useState(-1)
+  const [modalLock, setModalLock] = useState(-1)
+  const [renderedFeature, setRenderedFeature] = useState("menu");
+
+  const [selectedHours, setSelectedHours] = useState(new IndexPath(0));
+  const [selectedMinutes, setSelectedMinutes] = useState(new IndexPath(0));
 
   const iconRefs = useRef([]);
 
@@ -44,10 +61,10 @@ export default function DashboardScreen({ navigation }) {
       headers: {
         Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
       },
-    };
+    };Constants.manifest.extra.
 
     axios
-      .get("http://192.168.15.187:8000/user-terminals/", config)
+      .get("http://192.168.146.88:8000/user-terminals/", config)
       .then((response) => {
         // todo: multiple-lock
         setTerminals(
@@ -79,109 +96,76 @@ export default function DashboardScreen({ navigation }) {
         },
       };
 
-      axios.post("http://192.168.15.187:8000/trigger/", data, config).then((response) => {
-        if ((response.status = 200)) {
-          var updating = [...terminals];
-          updating[terminalIdx].isLoading[deviceIdx] = false;
-          updating[terminalIdx].isLocked[deviceIdx] = false;
-          setTerminals(updating);
-
-          iconRefs.current[terminalIdx].startAnimation();
-
-          setTimeout(() => {
+      axios
+        .post("http://192.168.146.88:8000/trigger/", data, config)
+        .then((response) => {
+          if ((response.status = 200)) {
             var updating = [...terminals];
-            updating[terminalIdx].icons[deviceIdx] = "unlock-outline";
+            updating[terminalIdx].isLoading[deviceIdx] = false;
+            updating[terminalIdx].isLocked[deviceIdx] = false;
             setTerminals(updating);
-          }, 200);
-        }
-      });
+
+            iconRefs.current[terminalIdx].startAnimation();
+
+            setTimeout(() => {
+              var updating = [...terminals];
+              updating[terminalIdx].icons[deviceIdx] = "unlock-outline";
+              setTerminals(updating);
+            }, 200);
+          }
+        })
+        .catch((err) => console.log(err));
     }
   };
 
+  const registerTimer = async () => {
+    const timerTime = new Date();
+    timerTime.setTime(timerTime.getTime() + selectedHours.row * 3600000 + selectedMinutes.row * 60000);
+
+    const data = {
+      terminal_guid: terminals[modalTerminal].key,
+      device_idx: modalLock,
+      time: timerTime.toISOString(),
+    };
+
+    const config = {
+      headers: {
+        Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
+      },
+    };
+
+    axios
+      .post("http://192.168.146.88:8000/register-task/", data, config)
+      .then((response) => {
+        if ((response.status = 200)) {
+          setModalVisible(false)
+          alert("Timer registered successfully!");
+        }
+      })
+      .catch((err) => {
+        setModalVisible(false)
+        alert("Timer failed to register!");
+      });
+  };
+
+  const handleModalOpen = (terminal, lock) => {
+    setModalVisible(true)
+    setModalTerminal(terminal)
+    setModalLock(lock)
+  }
+
   const handleModalBack = () => {
-    if (featureOpen) {
-      setFeatureOpen(false)
-      setRenderedFeature(FeatureMenu)
-    }
+    if (renderedFeature !== "menu") {
+      setRenderedFeature("menu");
+    } else setModalVisible(false);
+  };
 
-    else setFeatureModalVisible(false)
-  }
+  const handleModalSave = () => {
+    // timer only
+    registerTimer();
+  };
 
-  const selectHour = (item) => {
-    const indexPath = item;
-
-    setSelectedHours(indexPath); 
-    setHours(indexPath.row.toString()); 
-    console.log(item);
-    console.log(selectedHours); 
-    console.log(hours);
-    
-  }
-  const renderSelectNumber = (value) => <SelectItem title={value} key={value} />;
- 
-  const FeatureMenu = () => (
-    <View style={styles.featuresContainer}>
-      <Card style={styles.featuresCard} disabled={true}>
-        <Button
-          appearance="outline"
-          style={styles.featuresButton}
-          onPress={() => {setRenderedFeature(TimePicker); setFeatureOpen(true)}}
-          accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="clock-outline" style={styles.featuresIcon} />}
-        />
-        <Text style={styles.featuresDesc}>Timer</Text>
-      </Card>
-      <Card style={styles.featuresCard} disabled={true}>
-        <Button
-          appearance="outline"
-          style={styles.featuresButton}
-          accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="flip-2-outline" style={styles.featuresIcon} />}
-        />
-        <Text style={styles.featuresDesc}>Routine</Text>
-      </Card>
-      <Card style={styles.featuresCard} disabled={true}>
-        <Button
-          appearance="outline"
-          style={styles.featuresButton}
-          accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="link-2-outline" style={styles.featuresIcon} />}
-        />
-        <Text style={styles.featuresDesc}>Link</Text>
-      </Card>
-      <Card style={styles.featuresCard} disabled={true}>
-        <Button
-          appearance="outline"
-          style={styles.featuresButton}
-          accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="shield-outline" style={styles.featuresIcon} />}
-        />
-        <Text style={styles.featuresDesc}>Password</Text>
-      </Card>
-    </View>
-  )
-
-  const TimePicker = () => (
-    <View style={styles.timerContainer}>
-      <View style={styles.timerCard}>
-        <Text style={styles.featuresDesc}>Hours</Text>
-        <Select 
-          placeholder='Default'
-          value={hours}
-          selectedIndex={selectedHours}
-          onSelect={(item) => selectHour(item)}
-          style={styles.timerSelect}
-        >
-          {Array.from({ length: 99 }, (_, i) => renderSelectNumber(i, "h"))}
-        </Select>
-      </View>
-      {/* <View style={styles.timerCard}>
-        <Text style={styles.featuresDesc}>Minutes</Text>
-        <Select selectedIndex={selectedMinutes} value={hours} placeholder="" onSelect={(opt) => setMinutes(opt.row)} style={styles.timerSelect}>
-          {Array.from({ length: 99 }, (_, i) => renderSelectNumber(i, "m"))}
-        </Select>
-      </View> */}
-    </View>
-  )
-
-  const [renderedFeature, setRenderedFeature] = useState(FeatureMenu);
-  const [featureOpen, setFeatureOpen] = useState(false);
+  const renderSelectNumber = (value) => <SelectItem title={value.toString()} key={value} />;
 
   return (
     <Layout style={styles.layout}>
@@ -216,7 +200,7 @@ export default function DashboardScreen({ navigation }) {
                     appearance="ghost"
                     status="basic"
                     style={styles.openModalButton}
-                    onPress={() => setFeatureModalVisible(true)}
+                    onPress={() => handleModalOpen(idx, 0)}
                     accessoryLeft={(props) => <Icon {...props} fill={theme["color-basic-700"]} name="more-horizontal-outline" style={styles.openModalIcon} />}
                   />
                 }
@@ -237,24 +221,97 @@ export default function DashboardScreen({ navigation }) {
         >
           Add Terminal
         </Button>
-        <Modal visible={featureModalVisible} backdropStyle={styles.backdrop} onBackdropPress={() => setFeatureModalVisible(false)} animationType="fade" style={styles.modal}>
+        <Modal
+          visible={modalVisible}
+          backdropStyle={styles.backdrop}
+          onBackdropPress={() => setModalVisible(false)}
+          animationType="fade"
+          style={styles.modal}
+        >
           <Card style={styles.modalCard} disabled={true}>
             <Text style={styles.featuresTitle}>Features</Text>
             <Divider />
-            {renderedFeature}
+            {renderedFeature === "menu" && (
+              <View style={styles.featuresContainer}>
+                <Card style={styles.featuresCard} disabled={true}>
+                  <Button
+                    appearance="outline"
+                    style={styles.featuresButton}
+                    onPress={() => {
+                      setRenderedFeature("time-picker");
+                    }}
+                    accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="clock-outline" style={styles.featuresIcon} />}
+                  />
+                  <Text style={styles.featuresDesc}>Timer</Text>
+                </Card>
+                <Card style={styles.featuresCard} disabled={true}>
+                  <Button
+                    appearance="outline"
+                    style={styles.featuresButton}
+                    accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="flip-2-outline" style={styles.featuresIcon} />}
+                  />
+                  <Text style={styles.featuresDesc}>Routine</Text>
+                </Card>
+                <Card style={styles.featuresCard} disabled={true}>
+                  <Button
+                    appearance="outline"
+                    style={styles.featuresButton}
+                    accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="link-2-outline" style={styles.featuresIcon} />}
+                  />
+                  <Text style={styles.featuresDesc}>Link</Text>
+                </Card>
+                <Card style={styles.featuresCard} disabled={true}>
+                  <Button
+                    appearance="outline"
+                    style={styles.featuresButton}
+                    accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="shield-outline" style={styles.featuresIcon} />}
+                  />
+                  <Text style={styles.featuresDesc}>Password</Text>
+                </Card>
+              </View>
+            )}
+            {renderedFeature === "time-picker" && (
+              <View style={styles.timerContainer}>
+                <View style={styles.timerCard}>
+                  <Text style={styles.featuresDesc}>Hours</Text>
+                  <Select
+                    placeholder="0"
+                    value={selectedHours.row.toString()}
+                    selectedIndex={selectedHours}
+                    onSelect={(item) => setSelectedHours(item)}
+                    style={styles.timerSelect}
+                  >
+                    {[...Array(99).keys()].map((_, idx) => renderSelectNumber(idx))}
+                  </Select>
+                </View>
+                <View style={styles.timerCard}>
+                  <Text style={styles.featuresDesc}>Minutes</Text>
+                  <Select
+                    placeholder="0"
+                    value={selectedMinutes.row.toString()}
+                    selectedIndex={selectedMinutes}
+                    onSelect={(item) => setSelectedMinutes(item)}
+                    style={styles.timerSelect}
+                  >
+                    {[...Array(60).keys()].map((_, idx) => renderSelectNumber(idx))}
+                  </Select>
+                </View>
+              </View>
+            )}
+            <Divider />
             <View style={styles.modalButtonsContainer}>
-              <Button 
-                  appearance="outline" 
-                  style={styles.modalButton} 
-                  onPress={() => handleModalBack(false)} 
-                  accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="arrow-ios-back-outline" style={styles.modalButtonIcon} />}
-                >
-                  Back
-                </Button>
-              <Button 
-                appearance="outline" 
-                style={styles.modalButton} 
-                onPress={() => setFeatureModalVisible(false)} 
+              <Button
+                appearance="outline"
+                style={styles.modalButton}
+                onPress={() => handleModalBack(false)}
+                accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="arrow-ios-back-outline" style={styles.modalButtonIcon} />}
+              >
+                Back
+              </Button>
+              <Button
+                appearance="outline"
+                style={styles.modalButton}
+                onPress={() => handleModalSave()}
                 accessoryLeft={(props) => <Icon {...props} fill={theme["color-primary-500"]} name="checkmark-outline" style={styles.modalButtonIcon} />}
               >
                 Save
@@ -325,7 +382,8 @@ const getStyles = (theme) =>
       justifyContent: "space-evenly",
       alignItems: "center",
       flexWrap: "wrap",
-      marginBottom: 20,
+      marginTop: 20,
+      marginBottom: 25,
     },
     modalButton: {
       height: 50,
@@ -338,15 +396,15 @@ const getStyles = (theme) =>
       height: 30,
       width: 30,
       padding: 0,
-      margin:0
+      margin: 0,
     },
     featuresContainer: {
       flexDirection: "row",
       justifyContent: "space-around",
       alignItems: "center",
       flexWrap: "wrap",
-      paddingTop: 20,
-      paddingBottom: 20,
+      paddingTop: 15,
+      paddingBottom: 15,
     },
     featuresCard: {
       justifyContent: "center",
@@ -360,7 +418,8 @@ const getStyles = (theme) =>
     featuresTitle: {
       fontSize: 26,
       alignSelf: "center",
-      margin: 20,
+      marginTop: 10,
+      paddingBottom: 15,
     },
     featuresDesc: {
       alignSelf: "center",
@@ -383,7 +442,7 @@ const getStyles = (theme) =>
       padding: 0,
     },
     timerSelect: {
-      width: 220,
+      width: 100,
       marginTop: 5,
       marginLeft: 10,
       marginRight: 10,

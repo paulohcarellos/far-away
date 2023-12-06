@@ -13,7 +13,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = () => {
     setLoadingIcon(true)
-    axios.post('http://192.168.15.187:8000/login/', {'username': username, 'password': password})
+    axios.post('http://192.168.146.88:8000/login/', {'username': username, 'password': password})
         .then(async response => {
           if (response.status == 200) {
             await SecureStore.setItemAsync('authToken', response.data);

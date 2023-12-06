@@ -13,10 +13,7 @@
     "production": {
       "distribution": "internal",
       "android": {
-        "gradleCommand": ":app:assembleRelease" // Para APK ou use ":app:bundleRelease" para AAB
-      },
-      "env": {
-        // Variáveis de ambiente aqui
+        "gradleCommand": ":app:assembleRelease"
       }
     }
   },
