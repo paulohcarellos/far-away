@@ -224,7 +224,7 @@ export default function DashboardScreen({ navigation }) {
         <Modal
           visible={modalVisible}
           backdropStyle={styles.backdrop}
-          onBackdropPress={() => setModalVisible(false)}
+          onBackdropPress={() => {setModalVisible(false); setRenderedFeature("menu")}}
           animationType="fade"
           style={styles.modal}
         >
