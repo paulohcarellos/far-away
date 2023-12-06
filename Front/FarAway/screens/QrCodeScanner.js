@@ -36,7 +36,7 @@ export default function QRCodeScanner({ navigation }) {
     };
 
     axios
-      .post("http://192.168.15.187:8000/setup/", data, config)
+      .post("http://192.168.146.88:8000/setup/", data, config)
       .then((response) => {
         if ((response.status = 200)) {
           alert("Terminal added successfully");

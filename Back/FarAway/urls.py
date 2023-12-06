@@ -16,5 +16,6 @@ urlpatterns = [
     path('poll/', views.PollView.as_view(), name='poll'),
     path('user-terminals/', views.UserTerminalsView.as_view(), name='user-terminals'),
     path('generate-qrcodes/', views.GenerateQrCodes.as_view(), name='generate-qrcodes'),
+    path('register-task/', views.RegisterTaskView.as_view(), name='register-task'),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]
