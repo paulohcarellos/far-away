@@ -61,7 +61,7 @@ export default function DashboardScreen({ navigation }) {
       headers: {
         Authorization: `Token ${await SecureStore.getItemAsync("authToken")}`,
       },
-    };Constants.manifest.extra.
+    };
 
     axios
       .get("http://192.168.146.88:8000/user-terminals/", config)
